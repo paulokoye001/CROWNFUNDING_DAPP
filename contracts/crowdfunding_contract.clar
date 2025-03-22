@@ -123,4 +123,26 @@
   )
 )
 
+;; Refund request if milestones not met
+(define-public (request-refund (campaign-id uint))
+  (let ((campaign (map-get? campaigns { campaign-id: campaign-id }))
+        (contribution (map-get? contributions { campaign-id: campaign-id, backer: tx-sender })))
+    (match campaign
+      campaign-data
+      (if (and (< (get approved-milestones campaign-data) (get milestone-count campaign-data))
+               (> (get deadline campaign-data) block-height))
+        (match contribution
+          contribution-data
+          (begin
+            (map-delete contributions { campaign-id: campaign-id, backer: tx-sender })
+            (stx-transfer (get amount contribution-data) tx-sender)
+            (ok "Refund processed")
+          )
+          (err "No contribution found")
+        )
+        (err "Campaign goal met or refund period expired")
+      )
+    )
+  )
+)
 
