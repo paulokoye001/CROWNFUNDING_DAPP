@@ -44,3 +44,30 @@
     )
   )
 )
+
+
+;; Allow users to contribute STX to a campaign
+(define-public (contribute (campaign-id uint))
+  (let ((campaign (map-get? campaigns { campaign-id: campaign-id })))
+    (match campaign
+      campaign-data
+      (if (and (> (get deadline campaign-data) block-height)
+               (not (get withdrawn campaign-data)))
+        (let ((amount (stx-get-transfer-amount)))
+          (begin
+            (map-set campaigns
+              { campaign-id: campaign-id }
+              (merge campaign-data { total-raised: (+ (get total-raised campaign-data) amount) })
+            )
+            (map-set contributions
+              { campaign-id: campaign-id, backer: tx-sender }
+              { amount: (+ (get amount (map-get? contributions { campaign-id: campaign-id, backer: tx-sender }) 0) amount) }
+            )
+            (ok amount)
+          )
+        )
+        (err "Campaign not active or deadline passed")
+      )
+    )
+  )
+)
