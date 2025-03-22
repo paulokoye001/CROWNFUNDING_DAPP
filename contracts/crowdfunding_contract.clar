@@ -71,3 +71,56 @@
     )
   )
 )
+
+
+;; Backers vote to approve milestone releases
+(define-public (approve-milestone (campaign-id uint) (milestone-index uint))
+  (let ((campaign (map-get? campaigns { campaign-id: campaign-id }))
+        (contribution (map-get? contributions { campaign-id: campaign-id, backer: tx-sender })))
+    (match campaign
+      campaign-data
+      (if (and contribution
+               (< milestone-index (get milestone-count campaign-data))
+               (not (map-get? milestone-approvals { campaign-id: campaign-id, milestone-index: milestone-index, backer: tx-sender })))
+        (begin
+          (map-insert milestone-approvals { campaign-id: campaign-id, milestone-index: milestone-index, backer: tx-sender } { approved: true })
+          (ok "Milestone approval recorded")
+        )
+        (err "Invalid milestone index or already approved")
+      )
+    )
+  )
+)
+
+;; Withdraw funds if milestones are approved
+(define-public (withdraw-funds (campaign-id uint))
+  (let ((campaign (map-get? campaigns { campaign-id: campaign-id })))
+    (match campaign
+      campaign-data
+      (if (and (is-eq (get creator campaign-data) tx-sender)
+               (>= (get total-raised campaign-data) (get goal campaign-data))
+               (< (get approved-milestones campaign-data) (get milestone-count campaign-data)))
+        (let ((approved-votes (fold
+                                (lambda (backer acc)
+                                  (+ acc (if (get approved (map-get? milestone-approvals { campaign-id: campaign-id, milestone-index: (get approved-milestones campaign-data), backer: backer })) 1 0)))
+                                0
+                                (map-keys contributions))))
+          (if (> approved-votes (/ (length (map-keys contributions)) 2))
+            (begin
+              (map-set campaigns
+                { campaign-id: campaign-id }
+                (merge campaign-data { approved-milestones: (+ (get approved-milestones campaign-data) 1) })
+              )
+              (stx-transfer (/ (get total-raised campaign-data) (get milestone-count campaign-data)) tx-sender)
+              (ok "Milestone funds withdrawn")
+            )
+            (err "Milestone approval threshold not met")
+          )
+        )
+        (err "Not authorized, goal not met, or all milestones already approved")
+      )
+    )
+  )
+)
+
+
