@@ -1,30 +1,12 @@
-
-;; title: crowdfunding_contract
-;; version:
-;; summary:
-;; description:
-
-;; traits
-;;
-
-;; token definitions
-;;
-
-;; constants
-;;
-
-;; data vars
-;;
-
-;; data maps
-;;
-
-;; public functions
-;;
-
-;; read only functions
-;;
-
-;; private functions
-;;
-
+(define-map campaigns
+  { campaign-id: uint }
+  {
+    creator: principal,
+    goal: uint,
+    deadline: uint,
+    total-raised: uint,
+    withdrawn: bool,
+    milestone-count: uint,
+    approved-milestones: uint
+  }
+)
